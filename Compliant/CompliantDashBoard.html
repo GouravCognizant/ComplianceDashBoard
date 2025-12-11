@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockSphere Compliance Dashboard</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJqLz0E1xW4r4eE74xT8B36K8J39q72J+y47R4tM6Z47sS0Qx4YQ6P8dF55w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <style>
+        /* General background color: bg-gray-50 */
+        body {
+            background-color: #f9fafb; /* Very light gray */
+        }
+        /* Header styling: border-b border-gray-200 */
+        .compliance-header {
+            border-bottom: 1px solid #e5e7eb;
+        }
+        /* Indigo color styles (text-indigo-600, bg-indigo-600) */
+        .text-indigo {
+            color: #4f46e5;
+        }
+        .bg-indigo {
+            background-color: #4f46e5;
+        }
+        .bg-indigo-active {
+            background-color: #4338ca !important; /* Indigo 700 for hover/active */
+        }
+        
+        /* Pending card specific styling (border-orange-200 bg-orange-50) */
+        .card-pending {
+            border-color: #fed7aa !important; /* light orange border */
+            background-color: #fff7ed !important; /* very light orange background */
+        }
+        .text-orange {
+            color: #ea580c; /* Orange 600 */
+        }
+        .bg-orange {
+            background-color: #ea580c !important; /* Orange 600 */
+        }
+        .bg-orange-active {
+            background-color: #c2410c !important; /* Orange 700 for hover/active */
+        }
+
+        /* Validated Active Style */
+        .bg-green {
+            background-color: #16a34a !important; /* Green 600 */
+        }
+        .bg-green-active {
+            background-color: #15803d !important; /* Green 700 for hover/active */
+        }
+
+        /* Rejected Active Style */
+        .bg-red {
+            background-color: #dc2626 !important; /* Red 600 */
+        }
+        .bg-red-active {
+            background-color: #b91c1c !important; /* Red 700 for hover/active */
+        }
+        
+        /* Transaction Card Backgrounds (ComplianceTransactions) */
+        .bg-orange-50 { background-color: #fff7ed; }
+        .border-orange-200 { border-color: #fed7aa !important; }
+        .bg-green-50 { background-color: #f0fdf4; }
+        .border-green-200 { border-color: #bbf7d0 !important; }
+        .bg-red-50 { background-color: #fef2f2; }
+        .border-red-200 { border-color: #fecaca !important; }
+        
+        /* Status Badges */
+        .bg-warning-subtle { background-color: #fef9c3 !important; }
+        .text-warning-emphasis { color: #a16207 !important; }
+        .bg-success-subtle { background-color: #dcfce7 !important; }
+        .text-success-emphasis { color: #15803d !important; }
+        .bg-danger-subtle { background-color: #fee2e2 !important; }
+        .text-danger-emphasis { color: #b91c1c !important; }
+    </style>
+</head>
+<body>
+
+    <script>
+        // --- Placeholder Data to Simulate App State ---
+        const userName = "Jane Doe";
+        const usersData = [
+            { id: 'u1', name: 'Alice Johnson', email: 'alice@corp.com' }, 
+            { id: 'u2', name: 'Bob Smith', email: 'bob@corp.com' }
+        ];
+        const stocksData = [
+            { id: 's1', symbol: 'AAPL', name: 'Apple Inc.', price: 1520.00 }, 
+            { id: 's2', symbol: 'GOOGL', name: 'Alphabet Inc.', price: 1260.00 }, 
+            { id: 's3', symbol: 'MSFT', name: 'Microsoft Corp.', price: 980.00 }
+        ];
+        let transactionsData = [ // Use 'let' so we can modify this array
+            { id: 't1', stockSymbol: 'AAPL', stockName: 'Apple Inc.', stockId: 's1', total: 150000.00, timestamp: '2025-12-09T10:00:00Z', userId: 'u1', type: 'buy', quantity: 100, price: 1500.00, status: 'pending' },
+            { id: 't2', stockSymbol: 'GOOGL', stockName: 'Alphabet Inc.', stockId: 's2', total: 250000.00, timestamp: '2025-12-08T15:30:00Z', userId: 'u2', type: 'sell', quantity: 200, price: 1250.00, status: 'validated' },
+            { id: 't3', stockSymbol: 'MSFT', stockName: 'Microsoft Corp.', stockId: 's3', total: 50000.00, timestamp: '2025-12-07T09:00:00Z', userId: 'u1', type: 'buy', quantity: 50, price: 1000.00, status: 'rejected' },
+            { id: 't4', stockSymbol: 'AAPL', stockName: 'Apple Inc.', stockId: 's1', total: 3000.00, timestamp: '2025-12-09T11:00:00Z', userId: 'u2', type: 'buy', quantity: 2, price: 1500.00, status: 'pending' },
+        ];
+
+        // --- Simulated State Variables & Calculations ---
+        let currentFilter = 'pending'; // Initial state: 'pending'
+        let modalTransactionId = null;
+        let modalAction = 'approve';
+
+        const calculateCounts = () => {
+            return {
+                totalTransactions: transactionsData.length,
+                pendingTransactions: transactionsData.filter(t => t.status === 'pending').length,
+                validatedTransactions: transactionsData.filter(t => t.status === 'validated').length,
+                rejectedTransactions: transactionsData.filter(t => t.status === 'rejected').length
+            };
+        };
+
+        // --- Helper Functions ---
+        const getUserDetails = (userId) => {
+            return usersData.find(u => u.id === userId) || { name: 'Unknown', email: 'Unknown' };
+        };
+        const getStockPrice = (stockId) => {
+            const stock = stocksData.find(s => s.id === stockId);
+            return stock ? stock.price.toFixed(2) : 'N/A';
+        };
+
+        // --- UI Update Logic (Simulating React Rerenders) ---
+        function updateStatsCards() {
+            const counts = calculateCounts();
+            document.getElementById('totalCount').innerText = counts.totalTransactions;
+            document.getElementById('pendingCount').innerText = counts.pendingTransactions;
+            document.getElementById('validatedCount').innerText = counts.validatedTransactions;
+            document.getElementById('rejectedCount').innerText = counts.rejectedTransactions;
+            document.getElementById('pendingFilterCount').innerText = counts.pendingTransactions;
+            
+            const pendingAlert = document.getElementById('pendingAlert');
+            if (counts.pendingTransactions > 0) {
+                pendingAlert.innerText = 'Requires attention';
+            } else {
+                pendingAlert.innerHTML = '&nbsp;';
+            }
+        }
+        
+        function setFilter(status) {
+            currentFilter = status;
+            updateFiltersUI();
+            updateTransactionList();
+        }
+
+        function updateFiltersUI() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                const status = btn.getAttribute('data-status');
+                
+                // Reset classes
+                btn.className = `btn px-4 py-2 rounded-lg filter-btn bg-light text-dark hover-bg-secondary-subtle`;
+
+                // Set active class based on filterStatus
+                if (status === currentFilter) {
+                    if (status === 'all') btn.classList.add('bg-indigo', 'text-white', 'bg-indigo-active');
+                    else if (status === 'pending') btn.classList.add('bg-orange', 'text-white', 'bg-orange-active');
+                    else if (status === 'validated') btn.classList.add('bg-green', 'text-white', 'bg-green-active');
+                    else if (status === 'rejected') btn.classList.add('bg-red', 'text-white', 'bg-red-active');
+                }
+            });
+        }
+
+        function updateTransactionList() {
+            const listContainer = document.getElementById('transaction-list');
+            const searchInput = document.getElementById('search-input').value.toLowerCase();
+            
+            const sortedTransactions = [...transactionsData].sort((a, b) => 
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+
+            let filtered = sortedTransactions.filter(transaction => {
+                const matchesSearch = 
+                    transaction.stockSymbol.toLowerCase().includes(searchInput) ||
+                    transaction.stockName.toLowerCase().includes(searchInput);
+                
+                const matchesStatus = currentFilter === 'all' || transaction.status === currentFilter;
+                
+                return matchesSearch && matchesStatus;
+            });
+
+            listContainer.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fa-solid fa-circle-exclamation h2 text-muted mb-3"></i>
+                        <p class="text-muted">No transactions found matching the criteria.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(transaction => {
+                const user = getUserDetails(transaction.userId);
+                const currentPrice = getStockPrice(transaction.stockId);
+                
+                let statusBadgeClass, statusIcon, cardBgClass;
+                if (transaction.status === 'pending') {
+                    statusBadgeClass = 'bg-warning-subtle text-warning-emphasis';
+                    statusIcon = '<i class="fa-solid fa-clock me-1"></i> Pending Review';
+                    cardBgClass = 'bg-orange-50 border-orange-200';
+                } else if (transaction.status === 'validated') {
+                    statusBadgeClass = 'bg-success-subtle text-success-emphasis';
+                    statusIcon = '<i class="fa-solid fa-circle-check me-1"></i> Validated';
+                    cardBgClass = 'bg-green-50 border-green-200';
+                } else { // rejected
+                    statusBadgeClass = 'bg-danger-subtle text-danger-emphasis';
+                    statusIcon = '<i class="fa-solid fa-circle-xmark me-1"></i> Rejected';
+                    cardBgClass = 'bg-red-50 border-red-200';
+                }
+
+                const actions = transaction.status === 'pending' ? `
+                    <div class="d-flex gap-3 mt-4 pt-4 border-top border-secondary-subtle">
+                        <button type="button" class="btn btn-success flex-fill d-flex align-items-center justify-content-center gap-2" 
+                                data-bs-toggle="modal" data-bs-target="#validationModal" 
+                                onclick="setModalTransaction('${transaction.id}', 'approve')">
+                            <i class="fa-solid fa-check-circle"></i> Approve Transaction
+                        </button>
+                        <button type="button" class="btn btn-danger flex-fill d-flex align-items-center justify-content-center gap-2" 
+                                data-bs-toggle="modal" data-bs-target="#validationModal"
+                                onclick="setModalTransaction('${transaction.id}', 'reject')">
+                            <i class="fa-solid fa-xmark-circle"></i> Reject Transaction
+                        </button>
+                    </div>
+                ` : '';
+
+                const buySellTextClass = transaction.type === 'buy' ? 'text-success' : 'text-danger';
+                const formattedTotal = transaction.total.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                const formattedDate = new Date(transaction.timestamp).toLocaleDateString('en-IN');
+                const formattedTime = new Date(transaction.timestamp).toLocaleTimeString('en-IN');
+
+
+                const transactionHtml = `
+                    <div class="p-4 rounded-lg border-2 ${cardBgClass} shadow-sm">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <p class="text-dark h5 mb-0">${transaction.stockSymbol}</p>
+                                    <span class="badge ${statusBadgeClass} small rounded-pill d-flex align-items-center gap-1">${statusIcon}</span>
+                                </div>
+                                <p class="text-muted small mb-1">${transaction.stockName}</p>
+                                <p class="text-dark small mt-1 mb-0">
+                                    User: <span>${user.name}</span> (${user.email})
+                                </p>
+                            </div>
+                            <div class="text-end">
+                                <p class="text-dark h5 mb-0">₹${formattedTotal}</p>
+                                <p class="text-muted small mt-1 mb-0">${formattedDate}</p>
+                                <p class="text-muted small">${formattedTime}</p>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 pt-3 border-top border-secondary-subtle">
+                            <div class="col-6 col-sm-3">
+                                <p class="small text-muted mb-1">Type</p>
+                                <p class="small ${buySellTextClass} mb-0">${transaction.type.toUpperCase()}</p>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <p class="small text-muted mb-1">Quantity</p>
+                                <p class="small text-dark mb-0">${transaction.quantity}</p>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <p class="small text-muted mb-1">Price</p>
+                                <p class="small text-dark mb-0">₹${transaction.price.toFixed(2)}</p>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <p class="small text-muted mb-1">Current LTP</p>
+                                <p class="small text-dark mb-0">₹${currentPrice}</p>
+                            </div>
+                        </div>
+                        ${actions}
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', transactionHtml);
+            });
+        }
+
+        // --- Modal Logic ---
+        function setModalTransaction(id, action) {
+            modalTransactionId = id;
+            modalAction = action;
+
+            const transaction = transactionsData.find(t => t.id === id);
+            const user = getUserDetails(transaction.userId);
+            
+            const modalTitle = action === 'approve' ? 'Approve Transaction' : 'Reject Transaction';
+            const modalBodyBg = action === 'approve' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+            const modalIcon = action === 'approve' ? '<i class="fa-solid fa-circle-check text-success h5 mb-0"></i>' : '<i class="fa-solid fa-circle-xmark text-danger h5 mb-0"></i>';
+            const modalMessageText = action === 'approve' ? 'This transaction will be approved and executed' : 'This transaction will be rejected';
+            const modalConfirmBtnClass = action === 'approve' ? 'btn-success' : 'btn-danger';
+            const modalConfirmBtnText = action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection';
+
+            document.getElementById('validationModalLabel').innerText = modalTitle;
+            document.getElementById('modalTransactionDetails').className = `p-4 rounded-lg border ${modalBodyBg}`;
+            document.getElementById('modalTransactionMessage').innerHTML = `${modalIcon} <p class="mb-0 ms-2">${modalMessageText}</p>`;
+            
+            document.getElementById('modalStockSymbol').innerText = transaction.stockSymbol;
+            document.getElementById('modalUserName').innerText = user.name;
+            document.getElementById('modalQuantity').innerText = transaction.quantity;
+            document.getElementById('modalTotalAmount').innerText = '₹' + transaction.total.toFixed(2);
+            
+            const confirmBtn = document.getElementById('modalConfirmButton');
+            confirmBtn.className = `btn flex-fill text-white ${modalConfirmBtnClass}`;
+            confirmBtn.innerText = modalConfirmBtnText;
+            
+            document.getElementById('complianceNotes').value = ''; // Clear notes
+        }
+        
+        // --- NEW: Handle Confirmation and Update Data ---
+        function handleValidationConfirm() {
+            const newStatus = modalAction === 'approve' ? 'validated' : 'rejected';
+            
+            const index = transactionsData.findIndex(t => t.id === modalTransactionId);
+            if (index !== -1) {
+                // 1. Update the data
+                transactionsData[index].status = newStatus;
+                
+                // 2. Update all UI elements
+                updateStatsCards();
+                updateFiltersUI();
+                updateTransactionList();
+                
+                // 3. Optional: switch to the newly updated status filter
+                // If the user was viewing 'pending', switch to the new status to see the change
+                if (currentFilter === 'pending') {
+                    setFilter(newStatus); 
+                }
+            }
+            
+            // Log the action for demonstration (optional)
+            console.log(`Transaction ${modalTransactionId} status set to: ${newStatus}`);
+        }
+
+        // --- Initialisation ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('userNameHeader').innerText = `Welcome, ${userName}`;
+            
+            updateStatsCards();
+            updateFiltersUI();
+            updateTransactionList();
+
+            // Attach search input listener
+            document.getElementById('search-input').addEventListener('input', updateTransactionList);
+
+            // Attach modal confirm listener
+            document.getElementById('modalConfirmButton').addEventListener('click', handleValidationConfirm);
+        });
+
+    </script>
+    
+    <div class="min-vh-100">
+        <header class="bg-white compliance-header sticky-top">
+            <div class="container-fluid container-xl px-4 py-3 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-indigo rounded-circle p-2">
+                        <i class="fa-solid fa-arrow-trend-up text-white" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h1 class="h4 mb-0 text-indigo">StockSphere Compliance</h1>
+                        <p class="mb-0 text-secondary small" id="userNameHeader">Welcome, Jane Doe</p>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn d-flex align-items-center gap-2 text-dark bg-transparent hover-bg-light"
+                    onclick="alert('Logout functionality would be triggered here!')"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <div class="container-fluid container-xl px-4 py-5">
+            <div class="row row-cols-1 row-cols-md-4 g-4 mb-5">
+                <div class="col">
+                    <div class="card h-100 border shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fa-solid fa-chart-line text-primary"></i>
+                                <p class="card-text text-muted mb-0">Total Transactions</p>
+                            </div>
+                            <p class="card-title h3 mb-0" id="totalCount">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card h-100 card-pending shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fa-solid fa-clock text-orange"></i>
+                                <p class="card-text text-muted mb-0">Pending Review</p>
+                            </div>
+                            <p class="card-title h3 mb-0 text-dark" id="pendingCount">0</p>
+                            <small class="text-orange" id="pendingAlert"></small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card h-100 border shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fa-solid fa-circle-check text-success"></i>
+                                <p class="card-text text-muted mb-0">Validated</p>
+                            </div>
+                            <p class="card-title h3 mb-0" id="validatedCount">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="card h-100 border shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fa-solid fa-circle-xmark text-danger"></i>
+                                <p class="card-text text-muted mb-0">Rejected</p>
+                            </div>
+                            <p class="card-title h3 mb-0" id="rejectedCount">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border shadow-sm">
+                <div class="card-body p-5">
+                    <div class="mb-4">
+                        <h2 class="card-title h4 mb-1 text-dark">Transaction Validation</h2>
+                        <p class="text-secondary small">
+                            Review and validate pending transactions. Only validated transactions will be executed.
+                        </p>
+                    </div>
+
+                    <div class="d-flex flex-column flex-sm-row gap-3 mb-4">
+                        <div class="flex-fill position-relative">
+                            <i class="fa-solid fa-magnifying-glass position-absolute start-0 top-50 translate-middle-y ms-3 text-secondary"></i>
+                            <input
+                                type="text"
+                                id="search-input"
+                                placeholder="Search by stock symbol or name..."
+                                class="form-control ps-5 py-2 border border-secondary-subtle rounded-lg"
+                            >
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button
+                                type="button"
+                                class="btn px-4 py-2 rounded-lg filter-btn"
+                                data-status="all"
+                                onclick="setFilter('all')"
+                            >
+                                All (<span id="totalFilterCount">${transactionsData.length}</span>)
+                            </button>
+                            <button
+                                type="button"
+                                class="btn px-4 py-2 rounded-lg filter-btn"
+                                data-status="pending"
+                                onclick="setFilter('pending')"
+                            >
+                                Pending (<span id="pendingFilterCount">0</span>)
+                            </button>
+                            <button
+                                type="button"
+                                class="btn px-4 py-2 rounded-lg filter-btn"
+                                data-status="validated"
+                                onclick="setFilter('validated')"
+                            >
+                                Validated
+                            </button>
+                            <button
+                                type="button"
+                                class="btn px-4 py-2 rounded-lg filter-btn"
+                                data-status="rejected"
+                                onclick="setFilter('rejected')"
+                            >
+                                Rejected
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="transaction-list" class="d-flex flex-column gap-3">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="validationModal" tabindex="-1" aria-labelledby="validationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-xl">
+                <div class="modal-header border-0 pb-0">
+                    <h3 class="modal-title" id="validationModalLabel">Approve Transaction</h3>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="space-y-4 mb-4">
+                        <div id="modalTransactionDetails" class="p-4 rounded-lg border">
+                            <div id="modalTransactionMessage" class="d-flex align-items-center gap-2 mb-3">
+                                </div>
+
+                            <div class="space-y-2 small">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-secondary">Stock:</span>
+                                    <span id="modalStockSymbol" class="text-dark"></span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-secondary">User:</span>
+                                    <span id="modalUserName" class="text-dark"></span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-secondary">Quantity:</span>
+                                    <span id="modalQuantity" class="text-dark"></span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-secondary">Total Amount:</span>
+                                    <span id="modalTotalAmount" class="text-dark"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="complianceNotes" class="form-label small text-dark mb-2">Compliance Notes (Optional)</label>
+                            <textarea
+                                id="complianceNotes"
+                                class="form-control"
+                                rows="3"
+                                placeholder="Add any compliance notes or reasons..."
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 d-flex gap-3">
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary flex-fill"
+                        data-bs-dismiss="modal"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        id="modalConfirmButton"
+                        class="btn flex-fill text-white"
+                        data-bs-dismiss="modal"
+                    >
+                        Confirm Approval
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
